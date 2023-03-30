@@ -19,6 +19,7 @@ class ESM2(nn.Module):
         attention_heads: int = 20,
         alphabet: Union[esm.data.Alphabet, str] = "ESM-1b",
         token_dropout: bool = True,
+        gap_distance: int = 1024,
     ):
         super().__init__()
         self.num_layers = num_layers
@@ -35,6 +36,7 @@ class ESM2(nn.Module):
         self.prepend_bos = alphabet.prepend_bos
         self.append_eos = alphabet.append_eos
         self.token_dropout = token_dropout
+        self.gap_distance = gap_distance
 
         self._init_submodules()
 
@@ -55,6 +57,7 @@ class ESM2(nn.Module):
                     add_bias_kv=False,
                     use_esm1b_layer_norm=True,
                     use_rotary_embeddings=True,
+                    gap_distance=self.gap_distance,
                 )
                 for _ in range(self.num_layers)
             ]
@@ -74,7 +77,10 @@ class ESM2(nn.Module):
             weight=self.embed_tokens.weight,
         )
 
-    def forward(self, tokens, repr_layers=[], need_head_weights=False, return_contacts=False):
+    def forward(self, tokens, repr_layers=[], chain1_length = None, need_head_weights=False, return_contacts=False):
+        if chain1_length == None:
+            chain1_length = tokens.size(1) - 1
+            
         if return_contacts:
             need_head_weights = True
 
@@ -113,6 +119,7 @@ class ESM2(nn.Module):
                 x,
                 self_attn_padding_mask=padding_mask,
                 need_head_weights=need_head_weights,
+                chain1_length = chain1_length,
             )
             if (layer_idx + 1) in repr_layers:
                 hidden_representations[layer_idx + 1] = x.transpose(0, 1)
@@ -143,5 +150,5 @@ class ESM2(nn.Module):
 
         return result
 
-    def predict_contacts(self, tokens):
-        return self(tokens, return_contacts=True)["contacts"]
+    def predict_contacts(self, tokens, chain1_length=None):
+        return self(tokens, return_contacts=True, chain1_length=chain1_length)["contacts"]

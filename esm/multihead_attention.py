@@ -84,13 +84,15 @@ class MultiheadAttention(nn.Module):
         self_attention: bool = False,
         encoder_decoder_attention: bool = False,
         use_rotary_embeddings: bool = False,
+        gap_distance: int = 1024,
     ):
         super().__init__()
         self.embed_dim = embed_dim
         self.kdim = kdim if kdim is not None else embed_dim
         self.vdim = vdim if vdim is not None else embed_dim
         self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
-
+        self.gap_distance = gap_distance
+        
         self.num_heads = num_heads
         self.dropout = dropout
         self.head_dim = embed_dim // num_heads
@@ -125,7 +127,7 @@ class MultiheadAttention(nn.Module):
         self.onnx_trace = False
         self.rot_emb = None
         if use_rotary_embeddings:
-            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+            self.rot_emb = RotaryEmbedding(dim=self.head_dim, gap_distance=self.gap_distance)
 
         self.enable_torch_version = False
         if hasattr(F, "multi_head_attention_forward"):
@@ -168,6 +170,7 @@ class MultiheadAttention(nn.Module):
         attn_mask: Optional[Tensor] = None,
         before_softmax: bool = False,
         need_head_weights: bool = False,
+        chain1_length: int = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -352,7 +355,7 @@ class MultiheadAttention(nn.Module):
                 )
 
         if self.rot_emb:
-            q, k = self.rot_emb(q, k)
+            q, k = self.rot_emb(q, k, chain1_length)
 
         attn_weights = torch.bmm(q, k.transpose(1, 2))
         attn_weights = MultiheadAttention.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
