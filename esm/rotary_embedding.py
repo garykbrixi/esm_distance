@@ -7,7 +7,6 @@ from typing import Tuple
 
 import torch
 
-
 def rotate_half(x):
     x1, x2 = x.chunk(2, dim=-1)
     return torch.cat((-x2, x1), dim=-1)
@@ -20,14 +19,15 @@ def apply_rotary_pos_emb(x, cos, sin):
     return (x * cos) + (rotate_half(x) * sin)
 
 
-def custom_apply_rotary_pos_emb(x, cos, sin, chain1_length):
-    if chain1_length != x.shape[-2]:
-        cos = torch.cat((cos[:, :(chain1_length), :], cos[:, -(x.shape[-2] - chain1_length):, :]), dim=1)
-        sin = torch.cat((sin[:, :(chain1_length), :], sin[:, -(x.shape[-2] - chain1_length):, :]), dim=1)
+def custom_apply_rotary_pos_emb(x, cos, sin, gap_info_list):
+    if torch.is_tensor(gap_info_list):
+        cos = torch.index_select(cos, 1, gap_info_list)
+        sin = torch.index_select(sin, 1, gap_info_list)
+
     else:
         cos = cos[:, : x.shape[-2], :]
         sin = sin[:, : x.shape[-2], :]
-          
+
     return (x * cos) + (rotate_half(x) * sin)
 
 class RotaryEmbedding(torch.nn.Module):
@@ -53,7 +53,6 @@ class RotaryEmbedding(torch.nn.Module):
         self._seq_len_cached = None
         self._cos_cached = None
         self._sin_cached = None
-        self.gap_distance = gap_distance
 
     def _update_cos_sin_tables(self, x, seq_dimension=1):
         seq_len = x.shape[seq_dimension]
@@ -62,7 +61,7 @@ class RotaryEmbedding(torch.nn.Module):
         # or if we're on a new device (possibly due to tracing for instance)
         if seq_len != self._seq_len_cached or self._cos_cached.device != x.device:
             self._seq_len_cached = seq_len
-            t = torch.arange(x.shape[seq_dimension]+self.gap_distance, device=x.device).type_as(self.inv_freq)
+            t = torch.arange(x.shape[seq_dimension]+5000, device=x.device).type_as(self.inv_freq) # adding extra distance to the sin and cos tables
             freqs = torch.einsum("i,j->ij", t, self.inv_freq)
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
 
@@ -71,11 +70,11 @@ class RotaryEmbedding(torch.nn.Module):
 
         return self._cos_cached, self._sin_cached
 
-    def forward(self, q: torch.Tensor, k: torch.Tensor, chain1_length: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, q: torch.Tensor, k: torch.Tensor, gap_info_list: list) -> Tuple[torch.Tensor, torch.Tensor]:
         self._cos_cached, self._sin_cached = self._update_cos_sin_tables(k, seq_dimension=-2)
-        
+
         return (
 
-            custom_apply_rotary_pos_emb(q, self._cos_cached, self._sin_cached, chain1_length+1), # add 1 to chain length for start token
-            custom_apply_rotary_pos_emb(k, self._cos_cached, self._sin_cached, chain1_length+1),
+            custom_apply_rotary_pos_emb(q, self._cos_cached, self._sin_cached, gap_info_list),
+            custom_apply_rotary_pos_emb(k, self._cos_cached, self._sin_cached, gap_info_list),
         )
