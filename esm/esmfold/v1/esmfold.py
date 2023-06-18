@@ -116,7 +116,7 @@ class ESMFold(nn.Module):
         return self.af2_to_esm[aa]
 
     def _compute_language_model_representations(
-        self, esmaa: torch.Tensor
+        self, esmaa: torch.Tensor, gap_info_list: list,
     ) -> torch.Tensor:
         """Adds bos/eos tokens for the language model, since the structure module doesn't use these."""
         batch_size = esmaa.size(0)
@@ -132,6 +132,7 @@ class ESMFold(nn.Module):
             esmaa,
             repr_layers=range(self.esm.num_layers + 1),
             need_head_weights=self.cfg.use_esm_attn_map,
+
         )
         esm_s = torch.stack(
             [v for _, v in sorted(res["representations"].items())], dim=2
@@ -156,6 +157,7 @@ class ESMFold(nn.Module):
         residx: T.Optional[torch.Tensor] = None,
         masking_pattern: T.Optional[torch.Tensor] = None,
         num_recycles: T.Optional[int] = None,
+        gap_info_list: T.Optional[list] = None,
     ):
         """Runs a forward pass given input tokens. Use `model.infer` to
         run inference from a sequence.
@@ -188,7 +190,7 @@ class ESMFold(nn.Module):
         if masking_pattern is not None:
             esmaa = self._mask_inputs_to_esm(esmaa, masking_pattern)
 
-        esm_s, esm_z = self._compute_language_model_representations(esmaa)
+        esm_s, esm_z = self._compute_language_model_representations(esmaa, gap_info_list)
 
         # Convert esm_s to the precision used by the trunk and
         # the structure module. These tensors may be a lower precision if, for example,
@@ -281,6 +283,7 @@ class ESMFold(nn.Module):
     def infer(
         self,
         sequences: T.Union[str, T.List[str]],
+        gap_info_list: T.Optional[list] = None,
         residx=None,
         masking_pattern: T.Optional[torch.Tensor] = None,
         num_recycles: T.Optional[int] = None,
@@ -325,6 +328,7 @@ class ESMFold(nn.Module):
             residx=residx,
             masking_pattern=masking_pattern,
             num_recycles=num_recycles,
+            gap_info_list = gap_info_list,
         )
 
         output["atom37_atom_exists"] = output[
@@ -342,14 +346,14 @@ class ESMFold(nn.Module):
         """Returns the pbd (file) string from the model given the model output."""
         return output_to_pdb(output)
 
-    def infer_pdbs(self, seqs: T.List[str], *args, **kwargs) -> T.List[str]:
+    def infer_pdbs(self, seqs: T.List[str], gap_info_list: T.Optional[list], *args, **kwargs) -> T.List[str]:
         """Returns list of pdb (files) strings from the model given a list of input sequences."""
-        output = self.infer(seqs, *args, **kwargs)
+        output = self.infer(seqs, gap_info_list, *args, **kwargs)
         return self.output_to_pdb(output)
 
-    def infer_pdb(self, sequence: str, *args, **kwargs) -> str:
+    def infer_pdb(self, sequence: str, gap_info_list: list, *args, **kwargs) -> str:
         """Returns the pdb (file) string from the model given an input sequence."""
-        return self.infer_pdbs([sequence], *args, **kwargs)[0]
+        return self.infer_pdbs([sequence], gap_info_list, *args, **kwargs)[0]
 
     def set_chunk_size(self, chunk_size: T.Optional[int]):
         # This parameter means the axial attention will be computed
