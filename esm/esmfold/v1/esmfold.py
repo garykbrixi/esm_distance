@@ -181,6 +181,22 @@ class ESMFold(nn.Module):
         L = aa.shape[1]
         device = aa.device
 
+        # set residx according to the gap info
+        if gap_info_list is not None:
+            residx = []
+            counter = 0
+            j = 0
+            for i in range(aa.shape[1]):
+                if i==gap_info_list[j][0]+1: #add one for the start position
+                    counter += gap_info_list[j][1]
+                    if j<len(gap_info_list)-1:
+                        j += 1
+                residx.append(counter)
+                counter += 1
+
+            residx = torch.Tensor(residx)
+            residx = residx.long().expand_as(aa).to(device = device)
+
         if residx is None:
             residx = torch.arange(L, device=device).expand_as(aa)
 
