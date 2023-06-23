@@ -44,7 +44,7 @@ class RotaryEmbedding(torch.nn.Module):
         (it does not create the embedding dimension) and will likely be picked up (imported) on a ad-hoc basis
     """
 
-    def __init__(self, dim: int, gap_distance=1024, *_, **__):
+    def __init__(self, dim: int, *_, **__):
         super().__init__()
         # Generate and save the inverse frequency buffer (non trainable)
         inv_freq = 1.0 / (10000 ** (torch.arange(0, dim, 2).float() / dim))
@@ -61,7 +61,7 @@ class RotaryEmbedding(torch.nn.Module):
         # or if we're on a new device (possibly due to tracing for instance)
         if seq_len != self._seq_len_cached or self._cos_cached.device != x.device:
             self._seq_len_cached = seq_len
-            t = torch.arange(x.shape[seq_dimension]+10000, device=x.device).type_as(self.inv_freq) # adding extra distance to the sin and cos tables
+            t = torch.arange(x.shape[seq_dimension]+50000, device=x.device).type_as(self.inv_freq) # adding extra distance to the sin and cos tables
             freqs = torch.einsum("i,j->ij", t, self.inv_freq)
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
 

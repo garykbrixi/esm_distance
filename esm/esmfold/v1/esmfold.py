@@ -158,6 +158,7 @@ class ESMFold(nn.Module):
         masking_pattern: T.Optional[torch.Tensor] = None,
         num_recycles: T.Optional[int] = None,
         gap_info_list: T.Optional[list] = None,
+        modify_residx:T.Optional[bool] = False,
     ):
         """Runs a forward pass given input tokens. Use `model.infer` to
         run inference from a sequence.
@@ -172,6 +173,8 @@ class ESMFold(nn.Module):
                 different masks are provided.
             num_recycles (int): How many recycle iterations to perform. If None, defaults to training max
                 recycles, which is 3.
+            gap_info_list (list): Position and length of position embedding gaps.
+            modify_residx (bool): If true, update the structure models residx to match the gap_info_list gaps, if false leave residx as continuos.
         """
 
         if mask is None:
@@ -182,7 +185,7 @@ class ESMFold(nn.Module):
         device = aa.device
 
         # set residx according to the gap info
-        if gap_info_list is not None:
+        if gap_info_list is not None and modify_residx:
             residx = []
             counter = 0
             j = 0
@@ -195,7 +198,7 @@ class ESMFold(nn.Module):
                 counter += 1
 
             residx = torch.Tensor(residx)
-            residx = residx.long().expand_as(aa).to(device = device)
+            residx = residx.long().to(device = device).expand_as(aa)
 
         if residx is None:
             residx = torch.arange(L, device=device).expand_as(aa)
@@ -305,6 +308,7 @@ class ESMFold(nn.Module):
         num_recycles: T.Optional[int] = None,
         residue_index_offset: T.Optional[int] = 512,
         chain_linker: T.Optional[str] = "G" * 25,
+        modify_residx: T.Optional[bool] = False,
     ):
         """Runs a forward pass given input sequences.
 
@@ -345,6 +349,7 @@ class ESMFold(nn.Module):
             masking_pattern=masking_pattern,
             num_recycles=num_recycles,
             gap_info_list = gap_info_list,
+            modify_residx = modify_residx,
         )
 
         output["atom37_atom_exists"] = output[
