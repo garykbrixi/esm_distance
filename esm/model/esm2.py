@@ -96,6 +96,7 @@ class ESM2(nn.Module):
                 counter += 1
 
             gap_info_list = torch.tensor(indices)
+            gap_info_list = gap_info_list.to(tokens.device)
 
         if return_contacts:
             need_head_weights = True
