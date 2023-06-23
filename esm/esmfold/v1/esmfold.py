@@ -132,7 +132,7 @@ class ESMFold(nn.Module):
             esmaa,
             repr_layers=range(self.esm.num_layers + 1),
             need_head_weights=self.cfg.use_esm_attn_map,
-
+            gap_info_list = gap_info_list,
         )
         esm_s = torch.stack(
             [v for _, v in sorted(res["representations"].items())], dim=2
