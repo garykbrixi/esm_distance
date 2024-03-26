@@ -1,3 +1,18 @@
+## Evolutionary Scale Modeling + custom positional embedding with gaps
+
+Please see our [preprint](https://www.biorxiv.org/content/10.1101/2024.01.30.577970v1.full.pdf) which introduced this embedding modification and other methods for analyzing protein language models
+
+```bibtex
+@article{zhang2024protein,
+  title={Protein language models learn evolutionary statistics of interacting sequence motifs},
+  author={Zhang, Zhidian and Wayment-Steele, Hannah K and Brixi, Garyk and Wang, Haobo and Dal Peraro, Matteo and Kern, Dorothee and Ovchinnikov, Sergey},
+  journal={bioRxiv},
+  pages={2024--01},
+  year={2024},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
+
 # Evolutionary Scale Modeling
 
 [![atlas](https://user-images.githubusercontent.com/3605224/199301187-a9e38b3f-71a7-44be-94f4-db0d66143c53.png)](https://esmatlas.com)
